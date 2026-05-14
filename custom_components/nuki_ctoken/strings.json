@@ -1,0 +1,31 @@
+{
+  "title": "Nuki ctoken",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to Nuki Bridge",
+        "description": "Enter the local Nuki Bridge HTTP API details. The integration calls /list with encrypted ctoken authentication and then lets you select the device.",
+        "data": {
+          "host": "Bridge IP address or host",
+          "port": "Bridge port",
+          "token": "Local Bridge API token"
+        }
+      },
+      "device": {
+        "title": "Select Nuki device",
+        "description": "Select the device that should be controlled by this integration.",
+        "data": {
+          "nuki_id": "Device"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to the Bridge or token authentication failed.",
+      "no_devices": "The Bridge responded, but no devices were returned by /list.",
+      "unknown_device": "The selected device was not found."
+    },
+    "abort": {
+      "already_configured": "This Nuki device is already configured."
+    }
+  }
+}

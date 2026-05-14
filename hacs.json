@@ -1,0 +1,6 @@
+{
+  "name": "Nuki ctoken",
+  "render_readme": true,
+  "domains": ["nuki_ctoken"],
+  "homeassistant": "2024.8.0"
+}
