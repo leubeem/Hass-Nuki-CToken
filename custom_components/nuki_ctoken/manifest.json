@@ -4,9 +4,9 @@
   "codeowners": [],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/YOUR_GITHUB_USER/nuki-ctoken-homeassistant",
+  "documentation": "https://github.com/leubeem/Hass-Nuki-CToken",
   "iot_class": "local_polling",
-  "issue_tracker": "https://github.com/YOUR_GITHUB_USER/nuki-ctoken-homeassistant/issues",
-  "requirements": ["PyNaCl==1.5.0"],
-  "version": "1.0.0"
+  "issue_tracker": "https://github.com/leubeem/Hass-Nuki-CToken/issues",
+  "requirements": [],
+  "version": "1.1.0"
 }

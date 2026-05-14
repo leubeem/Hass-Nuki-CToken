@@ -10,14 +10,12 @@ from datetime import datetime, timezone
 from typing import Any
 
 import voluptuous as vol
-from nacl.secret import SecretBox
-from nacl.utils import random as nacl_random
-
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from ._crypto import secretbox_encrypt
 from .const import (
     ACTION_MAP,
     CONF_DEVICE_NAME,
@@ -54,10 +52,8 @@ def build_ctoken(token: str) -> dict[str, str]:
     plaintext = f"{timestamp},{random_number}".encode("utf-8")
 
     key = hashlib.sha256(token.encode("utf-8")).digest()
-    nonce = nacl_random(24)
-    box = SecretBox(key)
-
-    encrypted = box.encrypt(plaintext, nonce).ciphertext
+    nonce = secrets.token_bytes(24)
+    encrypted = secretbox_encrypt(plaintext, nonce, key)
 
     return {
         "ctoken": encrypted.hex(),

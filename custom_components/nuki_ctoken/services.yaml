@@ -3,14 +3,14 @@ lock:
   description: Lock the configured Nuki device using encrypted ctoken authentication.
   fields:
     entry_id:
-      name: Config entry ID
-      description: Optional. Required only if more than one Nuki ctoken entry is configured.
-      example: "01JABCDE1234567890ABCDE123"
+      name: Device
+      description: Optional. Required only when more than one Nuki device is configured.
       selector:
-        text:
+        config_entry:
+          integration: nuki_ctoken
     source:
       name: Source
-      description: Optional free-text source, for example the automation name. This is written to logs and the nuki_ctoken_action event.
+      description: Optional free-text label written to logs and the nuki_ctoken_action event. Useful for identifying which automation triggered the action.
       example: "automation.front_door_night_lock"
       selector:
         text:
@@ -20,28 +20,32 @@ unlock:
   description: Unlock the configured Nuki device using encrypted ctoken authentication.
   fields:
     entry_id:
-      name: Config entry ID
-      description: Optional. Required only if more than one Nuki ctoken entry is configured.
+      name: Device
+      description: Optional. Required only when more than one Nuki device is configured.
       selector:
-        text:
+        config_entry:
+          integration: nuki_ctoken
     source:
       name: Source
-      description: Optional free-text source, for example the automation name. This is written to logs and the nuki_ctoken_action event.
+      description: Optional free-text label written to logs and the nuki_ctoken_action event.
       selector:
         text:
 
 open:
   name: Open / unlatch
-  description: Open or unlatch the configured Nuki device. For a Smart Lock this usually pulls the latch; for an Opener it triggers the opener action.
+  description: >
+    Open or unlatch the configured Nuki device (action 3).
+    For a Smart Lock this pulls the latch; for an Opener it triggers the opener action.
   fields:
     entry_id:
-      name: Config entry ID
-      description: Optional. Required only if more than one Nuki ctoken entry is configured.
+      name: Device
+      description: Optional. Required only when more than one Nuki device is configured.
       selector:
-        text:
+        config_entry:
+          integration: nuki_ctoken
     source:
       name: Source
-      description: Optional free-text source, for example the automation name. This is written to logs and the nuki_ctoken_action event.
+      description: Optional free-text label written to logs and the nuki_ctoken_action event.
       selector:
         text:
 
@@ -50,13 +54,14 @@ lockngo:
   description: Run Nuki Lock 'n' Go using encrypted ctoken authentication.
   fields:
     entry_id:
-      name: Config entry ID
-      description: Optional. Required only if more than one Nuki ctoken entry is configured.
+      name: Device
+      description: Optional. Required only when more than one Nuki device is configured.
       selector:
-        text:
+        config_entry:
+          integration: nuki_ctoken
     source:
       name: Source
-      description: Optional free-text source, for example the automation name. This is written to logs and the nuki_ctoken_action event.
+      description: Optional free-text label written to logs and the nuki_ctoken_action event.
       selector:
         text:
 
@@ -65,12 +70,13 @@ lockngo_open:
   description: Run Nuki Lock 'n' Go with unlatch using encrypted ctoken authentication.
   fields:
     entry_id:
-      name: Config entry ID
-      description: Optional. Required only if more than one Nuki ctoken entry is configured.
+      name: Device
+      description: Optional. Required only when more than one Nuki device is configured.
       selector:
-        text:
+        config_entry:
+          integration: nuki_ctoken
     source:
       name: Source
-      description: Optional free-text source, for example the automation name. This is written to logs and the nuki_ctoken_action event.
+      description: Optional free-text label written to logs and the nuki_ctoken_action event.
       selector:
         text:
