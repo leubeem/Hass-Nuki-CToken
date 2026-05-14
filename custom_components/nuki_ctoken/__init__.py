@@ -1,5 +1,4 @@
 """Nuki Bridge integration using encrypted ctoken authentication."""
-
 from __future__ import annotations
 
 import asyncio
@@ -27,9 +26,11 @@ from .const import (
     CONF_SOURCE,
     CONF_TOKEN,
     DOMAIN,
+    PLATFORMS,
     REQUEST_TIMEOUT,
     SERVICE_NAMES,
 )
+from .coordinator import NukiCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -62,7 +63,7 @@ def build_ctoken(token: str) -> dict[str, str]:
 
 
 class NukiCtokenClient:
-    """Small async client for the local Nuki Bridge HTTP API."""
+    """Async HTTP client for the local Nuki Bridge API."""
 
     def __init__(self, hass: HomeAssistant, data: dict[str, Any]) -> None:
         self.hass = hass
@@ -71,10 +72,10 @@ class NukiCtokenClient:
         self.token: str = data[CONF_TOKEN]
         self.nuki_id: int = data[CONF_NUKI_ID]
         self.device_type: int = data[CONF_DEVICE_TYPE]
-        self.device_name: str = data.get(CONF_DEVICE_NAME, str(self.nuki_id))
+        self.device_name: str = data.get(CONF_DEVICE_NAME, str(data[CONF_NUKI_ID]))
 
     async def request(self, endpoint: str, params: dict[str, Any] | None = None) -> Any:
-        """Call the Bridge API with ctoken authentication."""
+        """Call a Bridge API endpoint with ctoken authentication."""
         session = async_get_clientsession(self.hass)
         url = f"http://{self.host}:{self.port}/{endpoint.lstrip('/')}"
         request_params = dict(params or {})
@@ -85,7 +86,9 @@ class NukiCtokenClient:
                 response = await session.get(url, params=request_params)
                 text = await response.text()
         except Exception as err:  # noqa: BLE001
-            raise HomeAssistantError(f"Could not reach Nuki Bridge at {self.host}:{self.port}: {err}") from err
+            raise HomeAssistantError(
+                f"Could not reach Nuki Bridge at {self.host}:{self.port}: {err}"
+            ) from err
 
         if response.status >= 400:
             raise HomeAssistantError(f"Nuki Bridge returned HTTP {response.status}: {text}")
@@ -96,10 +99,9 @@ class NukiCtokenClient:
             return text
 
     async def lock_action(self, action_name: str) -> Any:
-        """Execute a Nuki lockAction."""
+        """Execute a lockAction on the Bridge."""
         if action_name not in ACTION_MAP:
             raise ServiceValidationError(f"Unknown Nuki action: {action_name}")
-
         return await self.request(
             "lockAction",
             {
@@ -111,7 +113,7 @@ class NukiCtokenClient:
         )
 
     async def list_devices(self) -> Any:
-        """List devices from bridge."""
+        """Call /list on the Bridge."""
         return await self.request("list")
 
 
@@ -120,13 +122,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
 
     client = NukiCtokenClient(hass, dict(entry.data))
+    coordinator = NukiCoordinator(hass, client)
 
     try:
-        await client.list_devices()
-    except HomeAssistantError as err:
+        await coordinator.async_config_entry_first_refresh()
+    except Exception as err:
         raise ConfigEntryNotReady(str(err)) from err
 
-    hass.data[DOMAIN][entry.entry_id] = client
+    hass.data[DOMAIN][entry.entry_id] = coordinator
+
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     if not hass.data[DOMAIN].get("_services_registered"):
         await _async_register_services(hass)
@@ -137,8 +142,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
-    return True
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if unloaded:
+        hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
+    return unloaded
 
 
 async def _async_register_services(hass: HomeAssistant) -> None:
@@ -155,19 +162,23 @@ async def _async_register_services(hass: HomeAssistant) -> None:
 async def _async_handle_service_call(hass: HomeAssistant, call: ServiceCall) -> None:
     """Handle a lock/unlock/open service call."""
     action_name = call.service
-    client = _get_client_for_call(hass, call)
+    coordinator = _get_coordinator_for_call(hass, call)
+    client = coordinator.client
 
     actor = await _async_describe_actor(hass, call)
     timestamp = _utc_now()
 
     response = await client.lock_action(action_name)
 
+    # Refresh coordinator so entity state updates immediately
+    await coordinator.async_request_refresh()
+
     event_data = {
         "timestamp": timestamp,
         "action": action_name,
         "device_name": client.device_name,
         "nuki_id": client.nuki_id,
-        "entry_id": _entry_id_for_client(hass, client),
+        "entry_id": _entry_id_for_coordinator(hass, coordinator),
         "source": call.data.get(CONF_SOURCE),
         "user_id": actor.get("user_id"),
         "user_name": actor.get("user_name"),
@@ -179,50 +190,47 @@ async def _async_handle_service_call(hass: HomeAssistant, call: ServiceCall) -> 
     }
 
     _LOGGER.info(
-        "Nuki action executed timestamp=%s action=%s device=%s nuki_id=%s user_id=%s user_name=%s automation_entity_id=%s automation_name=%s source=%s context_id=%s parent_id=%s response=%s",
-        timestamp,
-        action_name,
-        client.device_name,
-        client.nuki_id,
-        actor.get("user_id"),
-        actor.get("user_name"),
-        actor.get("automation_entity_id"),
-        actor.get("automation_name"),
-        call.data.get(CONF_SOURCE),
-        call.context.id,
-        call.context.parent_id,
+        "Nuki action executed timestamp=%s action=%s device=%s nuki_id=%s "
+        "user_id=%s user_name=%s automation_entity_id=%s automation_name=%s "
+        "source=%s context_id=%s parent_id=%s response=%s",
+        timestamp, action_name, client.device_name, client.nuki_id,
+        actor.get("user_id"), actor.get("user_name"),
+        actor.get("automation_entity_id"), actor.get("automation_name"),
+        call.data.get(CONF_SOURCE), call.context.id, call.context.parent_id,
         response,
     )
 
     hass.bus.async_fire(f"{DOMAIN}_action", event_data)
 
 
-def _get_client_for_call(hass: HomeAssistant, call: ServiceCall) -> NukiCtokenClient:
-    """Return the configured client for this service call."""
+def _get_coordinator_for_call(hass: HomeAssistant, call: ServiceCall) -> NukiCoordinator:
+    """Return the coordinator for this service call."""
     data = hass.data.get(DOMAIN, {})
-    clients = {key: value for key, value in data.items() if isinstance(value, NukiCtokenClient)}
+    coordinators = {k: v for k, v in data.items() if isinstance(v, NukiCoordinator)}
 
-    if not clients:
+    if not coordinators:
         raise ServiceValidationError("No Nuki ctoken config entry is loaded.")
 
     entry_id = call.data.get(CONF_ENTRY_ID)
     if entry_id:
-        client = clients.get(entry_id)
-        if client is None:
-            raise ServiceValidationError(f"No loaded Nuki ctoken entry found for entry_id={entry_id}")
-        return client
+        coordinator = coordinators.get(entry_id)
+        if coordinator is None:
+            raise ServiceValidationError(
+                f"No loaded Nuki ctoken entry found for entry_id={entry_id}"
+            )
+        return coordinator
 
-    if len(clients) > 1:
+    if len(coordinators) > 1:
         raise ServiceValidationError(
             "Multiple Nuki ctoken entries are loaded. Add entry_id to the service call data."
         )
 
-    return next(iter(clients.values()))
+    return next(iter(coordinators.values()))
 
 
-def _entry_id_for_client(hass: HomeAssistant, client: NukiCtokenClient) -> str | None:
+def _entry_id_for_coordinator(hass: HomeAssistant, coordinator: NukiCoordinator) -> str | None:
     for entry_id, value in hass.data.get(DOMAIN, {}).items():
-        if value is client:
+        if value is coordinator:
             return entry_id
     return None
 
@@ -238,7 +246,7 @@ async def _async_describe_actor(hass: HomeAssistant, call: ServiceCall) -> dict[
             if user is not None:
                 user_name = user.name
         except Exception:  # noqa: BLE001
-            _LOGGER.debug("Could not resolve Home Assistant user for user_id=%s", user_id)
+            _LOGGER.debug("Could not resolve HA user for user_id=%s", user_id)
 
     automation_entity_id = None
     automation_name = None

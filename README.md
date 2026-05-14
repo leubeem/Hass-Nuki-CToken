@@ -173,6 +173,11 @@ To see only nuki_ctoken log entries, filter the log by `nuki_ctoken` in **Settin
 custom_components/nuki_ctoken/
   __init__.py       Main integration: client, ctoken builder, service handlers
   _crypto.py        Pure-Python XSalsa20-Poly1305 (no native dependencies)
+  coordinator.py    DataUpdateCoordinator (polls /list and /log)
+  entity.py         Base entity with device info
+  lock.py           Lock entity
+  sensor.py         Battery, firmware, state, last activity sensors
+  binary_sensor.py  Battery critical and door sensors
   config_flow.py    UI setup flow
   const.py          Constants
   manifest.json
@@ -181,6 +186,10 @@ custom_components/nuki_ctoken/
 hacs.json
 README.md
 ```
+
+## Acknowledgements
+
+Inspired by and referenced against [hass_nuki_ng](https://github.com/kvj/hass_nuki_ng) by [@kvj](https://github.com/kvj) — a more feature-complete Nuki integration that also supports the Nuki Web API and callbacks. If you need webhook-based real-time updates or web API support, check it out.
 
 ## Contributing
 

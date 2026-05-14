@@ -27,5 +27,29 @@
     "abort": {
       "already_configured": "This Nuki device is already configured."
     }
+  },
+  "entity": {
+    "sensor": {
+      "state": {
+        "name": "Lock state"
+      },
+      "battery": {
+        "name": "Battery"
+      },
+      "firmware": {
+        "name": "Firmware version"
+      },
+      "last_activity": {
+        "name": "Last activity"
+      }
+    },
+    "binary_sensor": {
+      "battery_critical": {
+        "name": "Battery critical"
+      },
+      "door": {
+        "name": "Door"
+      }
+    }
   }
 }
